@@ -51,14 +51,14 @@ initial begin
   i_clk = 0;
   i_rstn = 0;
   i_im2col_data = 8'd0;
+  #10 i_rstn = 1;
 end
-always #5 i_rstn = 1;
 always #5 i_clk = ~i_clk;
 initial begin
 //    #10 i_im2col_data = 6;        
 
   for(i = 0;i < 255;i = i+1) begin
-    #10 i_im2col_data = i;        
+    #10 i_im2col_data = i[7:0];        
 
     end
    end      

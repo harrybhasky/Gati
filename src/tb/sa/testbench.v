@@ -12,13 +12,13 @@ reg sel1 = 0;
 reg sel2 = 0;
 reg trigger1 = 0;
 reg trigger2 = 0;
-reg rx_serial = 0;
+wire rx_serial;
 wire column_serial_out;
 wire row_serial_out;
                                                 
-reg [((COL * ROW) * 32)-1 : 0] weight_matrix = {
-    32'h0, 32'h8, 32'h4, 32'h6, 32'h3, 32'h5, 32'h1, 32'h2, 32'h6,
-    32'h1, 32'h2, 32'h9, 32'h4, 32'h5, 32'h2, 32'h6, 32'h4, 32'h5
+reg [((COL * ROW) * 8)-1 : 0] weight_matrix = {
+    8'h0, 8'h8, 8'h4, 8'h6, 8'h3, 8'h5, 8'h1, 8'h2, 8'h6,
+    8'h1, 8'h2, 8'h9, 8'h4, 8'h5, 8'h2, 8'h6, 8'h4, 8'h5
     
     
 };
@@ -87,7 +87,7 @@ always @(posedge clk)begin
         end
         
         1: begin
-            tx_byte <= weight_matrix [(((ROW * COL) - counter) * 32) -1 -: 32];
+            tx_byte <= weight_matrix [(((ROW * COL) - counter) * 8) -1 -: 8];
             counter <= counter + 1;
             tx_dv <= 1'b1;
             tx_state <= 0;
@@ -145,8 +145,6 @@ initial begin
                 
 end
 
-always @(*)begin
-    rx_serial <= tx_serial_data;
-end
+assign rx_serial = tx_serial_data;
 
 endmodule
