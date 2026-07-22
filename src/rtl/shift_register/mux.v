@@ -8,10 +8,10 @@ module mux #(parameter DATA_WIDTH = 8) (
 always @(*) begin
     case(sel)
     1'b0: begin
-        dout <= intermediate_result;
+        dout = intermediate_result;
     end 
     1'b1: begin
-        dout <= quantized_result;
+        dout = quantized_result;
     end
     endcase
 end
