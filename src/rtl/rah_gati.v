@@ -141,7 +141,8 @@ module rah_gati #(
     output       eop,
 
     output [31:0] layer_cycles_count,
-    output [59:0] stall_cycles_count
+    output [59:0] stall_cycles_count,
+    output reg [7:0] consolidated_error_flag
 );
 
 
@@ -178,6 +179,7 @@ module rah_gati #(
   localparam NO_PORT_VA          = get_no_port_va(N_SA, COL_SA, ROW);
   localparam NO_PORT_BAC         = get_no_port_bac(N_SA, COL_SA, ROW);
   localparam ACC_TOGGLE          = get_acc_toggle(N_SA, COL_SA, ROW);
+  localparam AXI_STALL_THRESHOLD = 10'd1023;
 
   
   // formuled parameters 
@@ -246,6 +248,7 @@ module rah_gati #(
 
   reg sel_mipi_write;
   wire wr_id_o_wready ;                              
+  wire start;
   wire [(MIPI_DATA_WIDTH * MIPI_FIFO)-1 : 0] o_fifo_data;  //comes from fifo array
   wire final_o_data_last;  //comes from dram wr ctrl
   wire o_data_valid;  //comes from dram wr ctrl
@@ -488,6 +491,55 @@ module rah_gati #(
   wire [((NUM_PORTS-1)*8)-1:0] in_BLEN;
   wire [NUM_PORTS-2:0] i_enable;
   wire [NUM_PORTS-2:0] i_last;
+
+  reg user_start_d;
+  reg [9:0] axi_addr_stall_cnt;
+  reg [9:0] axi_write_stall_cnt;
+
+  always @(posedge i_clk) begin
+    user_start_d <= user_start;
+  end
+
+  // Sticky error bits; cleared on reset and at the start of a new inference.
+  always @(posedge i_clk) begin
+    if(!i_rst || (user_start && !user_start_d)) begin
+      consolidated_error_flag <= 8'b0;
+      axi_addr_stall_cnt <= 10'd0;
+      axi_write_stall_cnt <= 10'd0;
+    end
+    else begin
+      // bit0: MIPI FIFO underflow attempt (read when empty)
+      if(mipi_fifo_rd_en && mipi_fifo_empty) consolidated_error_flag[0] <= 1'b1;
+      // bit1: AXI read response error
+      if(rvalid && rready && (|rresp)) consolidated_error_flag[1] <= 1'b1;
+      // bit4: write data mux select conflict
+      if(sel_mipi_write && sel_op_write) consolidated_error_flag[4] <= 1'b1;
+      // bit5: request issued while PLL is not locked
+      if((i_valid_req_clk81 || (|i_valid)) && (PllLocked != 2'b11)) consolidated_error_flag[5] <= 1'b1;
+      // bit6: new start issued while dispatcher is still busy
+      if(start && dispatcher_busy) consolidated_error_flag[6] <= 1'b1;
+      // bit7: upstream read request while input stream is empty
+      if(rden && empty) consolidated_error_flag[7] <= 1'b1;
+
+      // bit2: AXI address channel backpressure timeout
+      if(avalid && !aready) begin
+        if(axi_addr_stall_cnt == AXI_STALL_THRESHOLD) consolidated_error_flag[2] <= 1'b1;
+        else axi_addr_stall_cnt <= axi_addr_stall_cnt + 10'd1;
+      end
+      else begin
+        axi_addr_stall_cnt <= 10'd0;
+      end
+
+      // bit3: AXI write-data channel backpressure timeout
+      if(dram_in_wrvalid && !wr_id_o_wready) begin
+        if(axi_write_stall_cnt == AXI_STALL_THRESHOLD) consolidated_error_flag[3] <= 1'b1;
+        else axi_write_stall_cnt <= axi_write_stall_cnt + 10'd1;
+      end
+      else begin
+        axi_write_stall_cnt <= 10'd0;
+      end
+    end
+  end
 
   assign i_valid = {
     mc_config_valid,
@@ -877,7 +929,6 @@ module rah_gati #(
   );
 
 endmodule
-
 
 
 

@@ -504,6 +504,34 @@ after computation has ended, or be used for debugging intermidiate layers.
 
 For more Abstract view of Dispatcher, see :ref:`dispatcher`
 
+Consolidated Error Flag
+***********************
+
+``rah_gati`` now exposes an 8-bit sticky debug signal named
+``consolidated_error_flag``. The flag is cleared on reset and when a new
+inference starts, and each bit latches when its corresponding condition is
+detected.
+
++-----+-----------------------------------------------+
+| Bit | Meaning                                       |
++=====+===============================================+
+| 0   | MIPI FIFO underflow attempt (read when empty) |
++-----+-----------------------------------------------+
+| 1   | AXI read response error (``rresp != 2'b00``)  |
++-----+-----------------------------------------------+
+| 2   | AXI address channel stall timeout             |
++-----+-----------------------------------------------+
+| 3   | AXI write-data channel stall timeout          |
++-----+-----------------------------------------------+
+| 4   | DRAM write-source select conflict             |
++-----+-----------------------------------------------+
+| 5   | DRAM request issued while PLL not locked      |
++-----+-----------------------------------------------+
+| 6   | New start issued while dispatcher busy        |
++-----+-----------------------------------------------+
+| 7   | Upstream read-request hazard on empty input   |
++-----+-----------------------------------------------+
+
 NMS
 ***
 
